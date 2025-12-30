@@ -7,32 +7,44 @@ dotenv.config();
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
-    res.status(405).json({ error: 'Método não permitido.' });
-    return;
+    return res.status(405).json({ error: 'Método não permitido.' });
   }
 
   try {
-    const payload: EvolutionWebhookPayload = req.body;
+    console.log('[WEBHOOK RAW PAYLOAD]');
+    console.log(JSON.stringify(req.body, null, 2));
 
-    console.log('[WEBHOOK] Evento recebido:', {
-      event: payload.event,
-      instance: payload.instance || payload.instanceName,
-      timestamp: new Date().toISOString(),
-    });
+    const payload: EvolutionWebhookPayload = req.body;
 
     const instanceName = payload.instance || payload.instanceName;
 
     if (!instanceName) {
-      console.warn('[WEBHOOK] Instância não encontrada no payload:', JSON.stringify(payload));
+      console.warn('[WEBHOOK] Instância não encontrada no payload');
       return res.status(400).json({ error: 'Instance name is required' });
     }
 
-    let updateData: { qr_code?: string | null; status?: string; phone_number?: string } = {};
+    // 🔑 Extrair barbershop_id da instância
+    if (!instanceName.startsWith('barbershop-')) {
+      return res.status(400).json({ error: 'Invalid instance name format' });
+    }
+
+    const barbershopId = instanceName.replace('barbershop-', '');
+
+    console.log('[WEBHOOK] Evento recebido:', {
+      event: payload.event,
+      instance: instanceName,
+      barbershopId,
+    });
+
+    let updateData: {
+      status?: string;
+      qr_code?: string | null;
+      phone_number?: string | null;
+      updated_at?: string;
+    } = {};
 
     switch (payload.event) {
       case 'qrcode.updated': {
-        console.log(`[WEBHOOK] QR Code atualizado para instância: ${instanceName}`);
-
         const qrCode =
           payload.qrcode?.base64 ||
           payload.qrcode?.code ||
@@ -41,54 +53,65 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           payload.data?.qr ||
           payload.data?.base64;
 
-        if (qrCode) {
-          let normalizedQrCode = qrCode;
-          if (!normalizedQrCode.startsWith('data:image')) {
-            normalizedQrCode = `data:image/png;base64,${qrCode}`;
-          }
-          updateData = { qr_code: normalizedQrCode, status: 'qr_code_pending' };
-          console.log(`[WEBHOOK] QR Code salvo para instância: ${instanceName}`);
-        } else {
-          console.warn(`[WEBHOOK] QR Code vazio para instância: ${instanceName}`, JSON.stringify(payload));
-          return res.status(400).json({ error: 'QR Code is required for qrcode.updated event' });
+        if (!qrCode) {
+          return res.status(400).json({ error: 'QR Code not found in payload' });
         }
+
+        const normalizedQrCode = qrCode.startsWith('data:image')
+          ? qrCode
+          : `data:image/png;base64,${qrCode}`;
+
+        updateData = {
+          status: 'qr_code_pending',
+          qr_code: normalizedQrCode,
+          phone_number: null,
+        };
         break;
       }
 
       case 'connection.open': {
-        console.log(`[WEBHOOK] Conexão aberta para instância: ${instanceName}`);
-        updateData = { qr_code: null, status: 'connected', phone_number: payload.phone || payload.phoneNumber };
-        console.log(`[WEBHOOK] Status atualizado para 'connected' para instância: ${instanceName}`);
+        updateData = {
+          status: 'connected',
+          qr_code: null,
+          phone_number: payload.phone || payload.phoneNumber || null,
+        };
         break;
       }
 
       case 'connection.close': {
-        console.log(`[WEBHOOK] Conexão fechada para instância: ${instanceName}`);
-        updateData = { qr_code: null, status: 'disconnected' };
-        console.log(`[WEBHOOK] Status atualizado para 'disconnected' para instância: ${instanceName}`);
+        updateData = {
+          status: 'disconnected',
+          qr_code: null,
+          phone_number: null,
+        };
         break;
       }
 
       default:
-        console.log(`[WEBHOOK] Evento não tratado: ${payload.event} para instância: ${instanceName}`);
-        break;
+        console.log('[WEBHOOK] Evento ignorado:', payload.event);
+        return res.status(200).json({ ignored: true });
     }
 
-    if (Object.keys(updateData).length > 0) {
-      const { data, error } = await supabase
-        .from('whatsapp_instances')
-        .upsert({ instance_name: instanceName, ...updateData }, { onConflict: 'instance_name' });
+    updateData.updated_at = new Date().toISOString();
 
-      if (error) {
-        console.error('Erro ao atualizar Supabase:', error);
-        return res.status(500).json({ error: 'Erro interno ao persistir dados do webhook' });
-      }
+    const { error } = await supabase
+      .from('whatsapp_connections')
+      .upsert(
+        {
+          barbershop_id: barbershopId,
+          ...updateData,
+        },
+        { onConflict: 'barbershop_id' }
+      );
+
+    if (error) {
+      console.error('[WEBHOOK] Erro Supabase:', error);
+      return res.status(500).json({ error: 'Erro ao persistir estado da conexão' });
     }
 
-    return res.status(200).json({ received: true });
+    return res.status(200).json({ success: true });
   } catch (error) {
-    console.error('[WEBHOOK] Erro ao processar webhook:', error);
+    console.error('[WEBHOOK] Erro inesperado:', error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 }
-
