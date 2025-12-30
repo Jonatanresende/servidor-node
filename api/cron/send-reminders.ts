@@ -1,7 +1,8 @@
-import { supabase } from '../supabaseClient';
-import * as storageService from '../services/storageService';
-import * as evolutionApiService from '../services/evolutionApiService';
-import { ReminderConfig } from '../types';
+// api/cron/send-reminders.ts
+import { supabase } from '../../src/supabaseClient'; // Ajuste o caminho conforme a estrutura
+import * as storageService from '../../src/services/storageService'; // Ajuste o caminho conforme a estrutura
+import * as evolutionApiService from '../../src/services/evolutionApiService'; // Ajuste o caminho conforme a estrutura
+import { ReminderConfig } from '../../src/types'; // Ajuste o caminho conforme a estrutura
 
 interface Agendamento {
   id: number;
@@ -11,7 +12,7 @@ interface Agendamento {
   cliente_telefone: string;
   servico_nome: string;
   barbeiro_nome: string;
-  barbearia_id: string;
+  barbeari-id: string;
   reminder_sent_at: string | null;
   status?: string;
   barbearia_nome?: string;
@@ -176,7 +177,7 @@ async function processarBarbearia(barbershopId: string): Promise<void> {
   const { data: agendamentos, error } = await supabase
     .from('agendamentos')
     .select('*')
-    .eq('barbearia_id', barbershopId)
+    .eq('barbeari-id', barbershopId)
     .is('reminder_sent_at', null)
     .neq('status', 'cancelado')
     .gte('data', dataHoje);
@@ -248,3 +249,16 @@ export async function sendReminders(): Promise<void> {
   }
 }
 
+export default async function handler(req: any, res: any) {
+  if (req.method === 'GET') {
+    try {
+      await sendReminders();
+      res.status(200).send('Lembretes verificados e enviados com sucesso.');
+    } catch (error) {
+      console.error('Erro no handler de send-reminders:', error);
+      res.status(500).send('Erro ao processar lembretes.');
+    }
+  } else {
+    res.status(405).send('Método não permitido.');
+  }
+}

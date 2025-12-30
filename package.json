@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "description": "Serviço de agendamento para envio de lembretes via WhatsApp usando Supabase e Evolution API",
   "scripts": {
-    "build": "tsc",
     "type-check": "tsc --noEmit"
   },
   "keywords": [
@@ -17,12 +16,10 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",
     "dotenv": "^16.6.1",
-    "node-cron": "^3.0.3"
+    "@vercel/node": "^5.5.16"
   },
   "devDependencies": {
     "@types/node": "^20.10.6",
-    "@types/node-cron": "^3.0.11",
-    "@vercel/node": "^5.5.16",
     "typescript": "^5.3.3"
   }
 }
