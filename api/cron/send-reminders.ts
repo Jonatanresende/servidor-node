@@ -1,8 +1,6 @@
 // api/cron/send-reminders.ts
-import { supabase } from '../../src/supabaseClient'; // Ajuste o caminho conforme a estrutura
-import * as storageService from '../../src/services/storageService'; // Ajuste o caminho conforme a estrutura
-import * as evolutionApiService from '../../src/services/evolutionApiService'; // Ajuste o caminho conforme a estrutura
-import { ReminderConfig } from '../../src/types'; // Ajuste o caminho conforme a estrutura
+import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { ReminderConfig } from '../../src/types'; // Importação estática para tipos
 
 interface Agendamento {
   id: number;
@@ -12,7 +10,7 @@ interface Agendamento {
   cliente_telefone: string;
   servico_nome: string;
   barbeiro_nome: string;
-  barbeari-id: string;
+  barbershopId: string; // Corrigido
   reminder_sent_at: string | null;
   status?: string;
   barbearia_nome?: string;
@@ -105,6 +103,9 @@ async function enviarLembrete(
   barbershopId: string,
   messageTemplate: string
 ): Promise<boolean> {
+  const { supabase } = await import('../../src/supabaseClient');
+  const evolutionApiService = await import('../../src/services/evolutionApiService');
+
   const instanceName = `barbershop_${barbershopId}`;
   
   // Verificar se a instância está conectada
@@ -141,10 +142,6 @@ async function enviarLembrete(
         `[Scheduler] Erro ao atualizar agendamento ${agendamento.id}:`,
         updateError
       );
-    } else {
-      console.log(
-        `[Scheduler] ✅ Lembrete enviado e registrado para agendamento ${agendamento.id}`
-      );
     }
   } else {
     console.error(
@@ -159,6 +156,9 @@ async function enviarLembrete(
  * Processa agendamentos de uma barbearia específica
  */
 async function processarBarbearia(barbershopId: string): Promise<void> {
+  const { supabase } = await import('../../src/supabaseClient');
+  const storageService = await import('../../src/services/storageService');
+
   const barbershopData = storageService.getBarbershopData(barbershopId);
   
   if (!barbershopData) {
@@ -177,7 +177,7 @@ async function processarBarbearia(barbershopId: string): Promise<void> {
   const { data: agendamentos, error } = await supabase
     .from('agendamentos')
     .select('*')
-    .eq('barbeari-id', barbershopId)
+    .eq('barbershopId', barbershopId) // Corrigido
     .is('reminder_sent_at', null)
     .neq('status', 'cancelado')
     .gte('data', dataHoje);
@@ -223,6 +223,7 @@ async function processarBarbearia(barbershopId: string): Promise<void> {
  * Função principal que processa lembretes para todas as barbearias
  */
 export async function sendReminders(): Promise<void> {
+  const storageService = await import('../../src/services/storageService');
   console.log('[Scheduler] Iniciando verificação de agendamentos...');
 
   try {
@@ -249,9 +250,26 @@ export async function sendReminders(): Promise<void> {
   }
 }
 
-export default async function handler(req: any, res: any) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  // 🔹 CORS headers (garantia)
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader(
+    'Access-Control-Allow-Methods',
+    'GET,POST,PUT,DELETE,OPTIONS'
+  );
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    'Content-Type, Authorization, x-internal-key'
+  );
+
+  // 🔹 PRE-FLIGHT (ESSENCIAL)
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
   if (req.method === 'GET') {
     try {
+      // Chamar a função principal de envio de lembretes
       await sendReminders();
       res.status(200).send('Lembretes verificados e enviados com sucesso.');
     } catch (error) {
