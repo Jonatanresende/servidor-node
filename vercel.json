@@ -10,12 +10,6 @@
       "dest": "/api/$1"
     }
   ],
-  "crons": [
-    {
-      "path": "/api/cron/send-reminders",
-      "schedule": "*/5 * * * *"
-    }
-  ],
   "headers": [
     {
       "source": "/api/(.*)",
