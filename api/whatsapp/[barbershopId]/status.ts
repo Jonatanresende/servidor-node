@@ -24,14 +24,15 @@ export default async function handler(
   if (req.method === 'GET') {
     // 🔹 lógica real com imports dinâmicos
     try {
+      // Imports dinâmicos movidos para dentro do bloco GET
+      const { getAuthenticatedUserAndBarbershopId, AuthenticationError, AuthorizationError, BarbershopNotFoundError } = await import('../../../src/utils/auth');
+      const evolutionApiService = await import('../../../src/services/evolutionApiService');
+
       const { barbershopId } = req.query;
 
       if (typeof barbershopId !== 'string') {
         return res.status(400).json({ error: 'ID da barbearia não fornecido na URL.' });
       }
-
-      const { getAuthenticatedUserAndBarbershopId, AuthenticationError, AuthorizationError, BarbershopNotFoundError } = await import('../../../src/utils/auth');
-      const evolutionApiService = await import('../../../src/services/evolutionApiService');
 
       const authenticatedUser = await getAuthenticatedUserAndBarbershopId(req);
 
@@ -45,6 +46,7 @@ export default async function handler(
       return res.status(200).json(status);
 
     } catch (error) {
+      // Imports dinâmicos para tratamento de erros
       const { AuthenticationError, AuthorizationError, BarbershopNotFoundError } = await import('../../../src/utils/auth');
       if (error instanceof AuthenticationError) {
         console.error('Erro de autenticação:', error.message);
