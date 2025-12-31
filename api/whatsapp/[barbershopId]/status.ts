@@ -1,9 +1,15 @@
 // api/whatsapp/[barbershopId]/status.ts
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import * as evolutionApiService from '../../../../src/services/evolutionApiService'; // Ajuste o caminho conforme a estrutura
-import { getAuthenticatedUserAndBarbershopId, AuthenticationError, AuthorizationError, BarbershopNotFoundError } from '../../../../src/utils/auth'; // Ajuste o caminho conforme a estrutura
+import * as evolutionApiService from '../../../src/services/evolutionApiService'; // Ajuste o caminho conforme a estrutura
+import { getAuthenticatedUserAndBarbershopId, AuthenticationError, AuthorizationError, BarbershopNotFoundError } from '../../../src/utils/auth'; // Ajuste o caminho conforme a estrutura
+import { applyCors } from '../../_utils/cors';
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(
+  req: VercelRequest,
+  res: VercelResponse
+) {
+  if (applyCors(req, res)) return;
+
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Método não permitido.' });
   }
@@ -18,7 +24,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const authenticatedUser = await getAuthenticatedUserAndBarbershopId(req);
 
     if (barbershopId !== authenticatedUser.barbershopId) {
-      console.warn(`Tentativa de acesso não autorizado: User ID ${authenticatedUser.id} tentou acessar barbershopId ${barbershopId}.`);
+      console.warn(`Tentativa de acesso não autorizado: User ID ${authenticatedUser.userId} tentou acessar barbershopId ${barbershopId}.`);
       return res.status(403).json({ error: 'Acesso negado. Você não tem permissão para acessar esta barbearia.' });
     }
 

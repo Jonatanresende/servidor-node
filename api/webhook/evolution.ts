@@ -1,7 +1,10 @@
 // api/webhook/evolution.ts
 import { VercelRequest, VercelResponse } from '@vercel/node';
+import { applyCors } from '../_utils/cors';
 
 export default async function (req: VercelRequest, res: VercelResponse) {
+  if (applyCors(req, res)) return;
+
   if (req.method === 'POST') {
     console.log('Webhook Evolution API recebido:');
     console.log(JSON.stringify(req.body, null, 2));

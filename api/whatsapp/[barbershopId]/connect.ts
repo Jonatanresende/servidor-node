@@ -2,10 +2,16 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import * as evolutionApiService from '../../../src/services/evolutionApiService';
 import * as dotenv from 'dotenv';
 import { getAuthenticatedUserAndBarbershopId, AuthenticationError, AuthorizationError, BarbershopNotFoundError } from '../../../src/utils/auth';
+import { applyCors } from '../../../_utils/cors';
 
 dotenv.config();
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(
+  req: VercelRequest,
+  res: VercelResponse
+) {
+  if (applyCors(req, res)) return;
+
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'Método não permitido.' });
     return;
