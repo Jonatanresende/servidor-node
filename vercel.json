@@ -4,6 +4,12 @@
       "runtime": "@vercel/node"
     }
   },
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/$1"
+    }
+  ],
   "crons": [
     {
       "path": "/api/cron/send-reminders",
