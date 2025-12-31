@@ -1,9 +1,21 @@
-// api/webhook/evolution.ts
 import { VercelRequest, VercelResponse } from '@vercel/node';
-import { applyCors } from '../_utils/cors';
 
 export default async function (req: VercelRequest, res: VercelResponse) {
-  if (applyCors(req, res)) return;
+  // 🔹 CORS headers (garantia)
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader(
+    'Access-Control-Allow-Methods',
+    'GET,POST,PUT,DELETE,OPTIONS'
+  );
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    'Content-Type, Authorization, x-internal-key'
+  );
+
+  // 🔹 PRE-FLIGHT (ESSENCIAL)
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
 
   if (req.method === 'POST') {
     console.log('Webhook Evolution API recebido:');

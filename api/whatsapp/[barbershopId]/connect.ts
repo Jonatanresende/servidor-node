@@ -2,7 +2,6 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import * as evolutionApiService from '../../../src/services/evolutionApiService';
 import * as dotenv from 'dotenv';
 import { getAuthenticatedUserAndBarbershopId, AuthenticationError, AuthorizationError, BarbershopNotFoundError } from '../../../src/utils/auth';
-import { applyCors } from '../../../_utils/cors';
 
 dotenv.config();
 
@@ -10,7 +9,21 @@ export default async function handler(
   req: VercelRequest,
   res: VercelResponse
 ) {
-  if (applyCors(req, res)) return;
+  // 🔹 CORS headers (garantia)
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader(
+    'Access-Control-Allow-Methods',
+    'GET,POST,PUT,DELETE,OPTIONS'
+  );
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    'Content-Type, Authorization, x-internal-key'
+  );
+
+  // 🔹 PRE-FLIGHT (ESSENCIAL)
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
 
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'Método não permitido.' });
